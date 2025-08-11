@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Laporan Inventory</title>
+  <style>
+    :root{--accent:#0b74de;--muted:#666}
+    body{font-family:Inter,Segoe UI,Arial,sans-serif;margin:0;background:#f6f8fb;color:#1f2937}
+    .container{max-width:1100px;margin:36px auto;padding:20px;background:#fff;border-radius:12px;box-shadow:0 6px 18px rgba(20,30,60,0.06)}
+    header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+    h1{margin:0;font-size:20px}
+    .meta{color:var(--muted);font-size:13px}
+    .controls{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}
+    .controls input,.controls select{padding:8px 10px;border:1px solid #e6e9ef;border-radius:8px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #eef2f6;font-size:14px}
+    th{background:#fbfdff;position:sticky;top:0}
+    tfoot td{font-weight:600}
+    .badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px}
+    .actions{display:flex;gap:8px}
+    button{background:var(--accent);color:#fff;padding:8px 12px;border:0;border-radius:8px;cursor:pointer}
+    button.ghost{background:#fff;color:var(--accent);border:1px solid #dbe9ff}
+    .small{padding:6px 8px;font-size:13px}
+    @media (max-width:720px){.container{margin:12px;padding:12px}th,td{padding:8px}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Laporan Inventory</h1>
+        <div class="meta" id="reportDate">Tarikh laporan: --</div>
+      </div>
+      <div class="actions">
+        <button id="btnPrint" class="small">Cetak</button>
+        <button id="btnExport" class="small ghost">Eksport CSV</button>
+      </div>
+    </header>
+
+    <section class="controls">
+      <input type="text" id="search" placeholder="Cari: nama, kod, lokasi..." />
+      <select id="filterCategory">
+        <option value="">-- Semua Kategori --</option>
+      </select>
+      <select id="filterStatus">
+        <option value="">-- Semua Status --</option>
+        <option value="Baik">Baik</option>
+        <option value="Rosak">Rosak</option>
+        <option value="Dalam Servis">Dalam Servis</option>
+      </select>
+      <input type="date" id="fromDate" />
+      <input type="date" id="toDate" />
+      <button id="btnReset" class="ghost small">Reset</button>
+    </section>
+
+    <section id="tableWrap">
+      <table id="reportTable">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Kod / ID</th>
+            <th>Nama Item</th>
+            <th>Kategori</th>
+            <th>Kuantiti</th>
+            <th>Lokasi</th>
+            <th>Status</th>
+            <th>Tarikh Daftar</th>
+            <th>Catatan</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4">Jumlah keseluruhan</td>
+            <td id="totalQty">0</td>
+            <td colspan="4"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </section>
+
+    <p style="margin-top:12px;color:var(--muted);font-size:13px">Nota: Ini adalah templat laporan. Untuk menggunakan data sebenar, gantikan pembolehubah <code>sampleData</code> dalam skrip dengan data borang pendaftaran anda (JSON).</p>
+  </div>
+
+  <script>
+    // ==== SAMPLE DATA ====
+    // Tukar data ini kepada data sebenar (JSON) yang dihasilkan dari borang pendaftaran inventory anda.
+    const sampleData = [
+      {id:'INV-001', name:'Laptop Dell Inspiron 14', category:'Elektronik', qty:4, location:'Stor Utama', status:'Baik', date:'2025-07-01', note:'Warranty 2026'},
+      {id:'INV-002', name:'Projector Epson X2', category:'AV', qty:1, location:'Bilik Mesyuarat', status:'Dalam Servis', date:'2025-06-20', note:'Lensa diganti'},
+      {id:'INV-003', name:'Kerusi Pejabat', category:'Perabot', qty:12, location:'Pejabat A', status:'Baik', date:'2025-01-15', note:''},
+      {id:'INV-004', name:'Router MikroTik', category:'Rangkaian', qty:2, location:'Server Room', status:'Rosak', date:'2024-11-05', note:'Spare unit diperlukan'}
+    ];
+
+    // ==== App logic ====
+    const tableBody = document.querySelector('#reportTable tbody');
+    const totalQtyEl = document.getElementById('totalQty');
+    const reportDateEl = document.getElementById('reportDate');
+    const filterCategory = document.getElementById('filterCategory');
+    const filterStatus = document.getElementById('filterStatus');
+    let data = sampleData.slice(); // work copy
+
+    function formatDate(d){
+      if(!d) return '';
+      const dt = new Date(d);
+      if(isNaN(dt)) return d;
+      return dt.toLocaleDateString('ms-MY');
+    }
+
+    function populateCategoryOptions(items){
+      const cats = [...new Set(items.map(i => i.category).filter(Boolean))];
+      cats.forEach(c=>{
+        const opt = document.createElement('option'); opt.value=c; opt.textContent=c; filterCategory.appendChild(opt);
+      });
+    }
+
+    function renderTable(items){
+      tableBody.innerHTML = '';
+      let totalQty = 0;
+      items.forEach((it, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx+1}</td>
+          <td>${it.id || ''}</td>
+          <td>${it.name || ''}</td>
+          <td>${it.category || ''}</td>
+          <td>${it.qty != null ? it.qty : ''}</td>
+          <td>${it.location || ''}</td>
+          <td>${it.status || ''}</td>
+          <td>${formatDate(it.date)}</td>
+          <td>${it.note || ''}</td>
+        `;
+        tableBody.appendChild(tr);
+        totalQty += Number(it.qty) || 0;
+      });
+      totalQtyEl.textContent = totalQty;
+      reportDateEl.textContent = 'Tarikh laporan: ' + new Date().toLocaleString('ms-MY');
+    }
+
+    function applyFilters(){
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const cat = filterCategory.value;
+      const stat = filterStatus.value;
+      const from = document.getElementById('fromDate').value;
+      const to = document.getElementById('toDate').value;
+
+      let result = data.filter(it => {
+        if(q){
+          const hay = [it.id,it.name,it.category,it.location,it.note].join(' ').toLowerCase();
+          if(!hay.includes(q)) return false;
+        }
+        if(cat && it.category !== cat) return false;
+        if(stat && it.status !== stat) return false;
+        if(from){ if(new Date(it.date) < new Date(from)) return false }
+        if(to){ if(new Date(it.date) > new Date(to)) return false }
+        return true;
+      });
+      renderTable(result);
+    }
+
+    // CSV export
+    function exportCSV(filename='laporan_inventory.csv'){
+      const rows = [];
+      const headers = ['Kod/ID','Nama Item','Kategori','Kuantiti','Lokasi','Status','Tarikh Daftar','Catatan'];
+      rows.push(headers.join(','));
+      const trs = Array.from(tableBody.querySelectorAll('tr'));
+      trs.forEach(tr=>{
+        const cols = Array.from(tr.querySelectorAll('td')).slice(1).map(td=>`"${td.textContent.replace(/"/g,'""')}"`);
+        rows.push(cols.join(','));
+      });
+      const csv = rows.join('\n');
+      const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.style.display='none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+
+    // Wire events
+    document.getElementById('search').addEventListener('input', applyFilters);
+    filterCategory.addEventListener('change', applyFilters);
+    filterStatus.addEventListener('change', applyFilters);
+    document.getElementById('fromDate').addEventListener('change', applyFilters);
+    document.getElementById('toDate').addEventListener('change', applyFilters);
+    document.getElementById('btnReset').addEventListener('click', ()=>{
+      document.getElementById('search').value=''; filterCategory.value=''; filterStatus.value=''; document.getElementById('fromDate').value=''; document.getElementById('toDate').value=''; applyFilters();
+    });
+    document.getElementById('btnExport').addEventListener('click', ()=>exportCSV());
+    document.getElementById('btnPrint').addEventListener('click', ()=>window.print());
+
+    // Init
+    populateCategoryOptions(data);
+    renderTable(data);
+
+    // === How to use with real form data ===
+    // If you have server-side endpoint that returns JSON array of inventory items, replace the `data` variable above:
+    // fetch('/api/inventory').then(r=>r.json()).then(json=>{ data = json; populateCategoryOptions(data); renderTable(data); });
+    // Or if you have CSV / Excel exported from the form, convert to JSON and assign to `data` variable.
+
+  </script>
+</body>
+</html>
