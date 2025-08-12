@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Login — Sample Form</title>
+  <style>
+    /* Simple, modern centered login form */
+    :root{--bg:#f3f6fb;--card:#ffffff;--accent:#2563eb;--muted:#6b7280}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial}
+    body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--bg),#eef4ff);padding:24px}
+    .card{width:100%;max-width:420px;background:var(--card);border-radius:12px;box-shadow:0 8px 30px rgba(39,43,70,0.08);padding:28px}
+    .brand{display:flex;gap:12px;align-items:center;margin-bottom:18px}
+    .brand .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#60a5fa);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:6px 0 18px;color:var(--muted);font-size:14px}
+
+    form{display:grid;gap:12px}
+    label{font-size:13px;color:#111827}
+    input[type="email"],input[type="password"]{width:100%;padding:12px;border:1px solid #e6e9ef;border-radius:8px;font-size:14px}
+    .field-row{display:flex;gap:8px;align-items:center}
+    .row-between{display:flex;align-items:center;justify-content:space-between}
+    .checkbox{display:flex;gap:8px;align-items:center}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 14px;border-radius:10px;border:0;background:var(--accent);color:white;font-weight:600;cursor:pointer}
+    .btn:active{transform:translateY(1px)}
+    .muted-link{font-size:13px;color:var(--accent);text-decoration:none}
+    .error{color:#ef4444;font-size:13px}
+    .helper{font-size:13px;color:var(--muted)}
+    .show-pass{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px}
+
+    @media (max-width:420px){.card{padding:20px}}
+
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <div class="brand">
+      <div class="logo">LF</div>
+      <div>
+        <h1>Welcome back</h1>
+        <p class="lead">Sign in to continue to your account.</p>
+      </div>
+    </div>
+
+    <!-- IMPORTANT: This is a front-end demo. Always validate on server side. -->
+    <form id="loginForm" novalidate>
+      <div>
+        <label for="email">Email address</label>
+        <input id="email" name="email" type="email" inputmode="email" autocomplete="username" required placeholder="you@domain.com" />
+        <div id="emailError" class="error" aria-live="polite" style="display:none"></div>
+      </div>
+
+      <div>
+        <div class="row-between">
+          <label for="password">Password</label>
+          <a href="#" class="muted-link" id="forgot">Forgot?</a>
+        </div>
+        <div class="field-row">
+          <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••" />
+          <button type="button" class="show-pass" id="togglePass" aria-pressed="false" aria-label="Show password">Show</button>
+        </div>
+        <div id="passError" class="error" aria-live="polite" style="display:none"></div>
+      </div>
+
+      <div class="row-between">
+        <label class="checkbox"><input type="checkbox" id="remember" name="remember" /> <span class="helper">Remember me</span></label>
+      </div>
+
+      <div>
+        <button class="btn" type="submit">Sign in</button>
+      </div>
+
+      <p class="helper" style="text-align:center;margin:8px 0 0">Don't have an account? <a href="#" class="muted-link">Create account</a></p>
+    </form>
+
+    <script>
+      const form = document.getElementById('loginForm');
+      const email = document.getElementById('email');
+      const password = document.getElementById('password');
+      const emailError = document.getElementById('emailError');
+      const passError = document.getElementById('passError');
+      const toggle = document.getElementById('togglePass');
+
+      toggle.addEventListener('click', () => {
+        const isHidden = password.type === 'password';
+        password.type = isHidden ? 'text' : 'password';
+        toggle.textContent = isHidden ? 'Hide' : 'Show';
+        toggle.setAttribute('aria-pressed', String(!isHidden));
+      });
+
+      function validateEmail(value){
+        // basic email check
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+      }
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        let ok = true;
+        emailError.style.display = 'none';
+        passError.style.display = 'none';
+
+        if (!email.value || !validateEmail(email.value)){
+          emailError.textContent = 'Please enter a valid email address.';
+          emailError.style.display = 'block';
+          ok = false;
+        }
+        if (!password.value || password.value.length < 6){
+          passError.textContent = 'Password must be at least 6 characters.';
+          passError.style.display = 'block';
+          ok = false;
+        }
+
+        if (!ok) return;
+
+        // Demo: in real app send to server (fetch / XMLHttpRequest). Never rely on front-end only for authentication.
+        const payload = {
+          email: email.value,
+          password: password.value,
+          remember: document.getElementById('remember').checked
+        };
+
+        // For demo we just log. Replace with fetch('/login', {method:'POST', body: JSON.stringify(... )})
+        console.log('Submitting', payload);
+        alert('Demo: login submitted (check console).');
+        form.reset();
+      });
+    </script>
+  </main>
+</body>
+</html>
